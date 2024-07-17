@@ -13,7 +13,7 @@ COPY chromium/src/out/Default /opt/comsyschrome
 
 RUN chown -R root:root /opt/comsyschrome
 
-COPY ../../setup/certificates/RootCA.cert /root/ca.crt
+COPY RootCA.crt /root/ca.crt
 
 RUN certutil -d sql:/root/.pki/nssdb -A -n 'example ca' -i /root/ca.crt -t TCP,TCP,TCP
 
