@@ -1,3 +1,4 @@
 [submodule "h2o"]
 	path = h2o
 	url = https://github.com/COMSYS/h2o
+	ignore = dirty
