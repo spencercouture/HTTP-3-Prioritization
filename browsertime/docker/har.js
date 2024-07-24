@@ -1,11 +1,11 @@
-'use strict';
+import intel from 'intel';
+import { harFromMessages } from 'chrome-har';
+import { logging } from 'selenium-webdriver';
+const log = intel.getLogger('browsertime.chrome');
+import { addBrowser } from '../support/har/index.js';
+const { Type } = logging;
 
-const log = require('intel').getLogger('browsertime.chrome');
-const perflogParser = require('chrome-har');
-const harBuilder = require('../support/har');
-const { Type } = require('selenium-webdriver').logging;
-
-module.exports = async function (
+export async function getHar(
   runner,
   result,
   index,
@@ -27,21 +27,19 @@ module.exports = async function (
       result.extraJson = {};
     }
     result.extraJson[`chromePerflog-${index}.json`] = messages;
-    result.extraJson[`chromeCDPlog-${index}.json`] = await cdpClient.getNetwork();
   }
   // CLEANUP since Chromedriver 2.29 there's a bug
   // https://bugs.chromium.org/p/chromedriver/issues/detail?id=1811
   await runner.getLogs(Type.PERFORMANCE);
 
-  const har = perflogParser.harFromMessages(messages);
+  const har = harFromMessages(messages);
 
   if (includeResponseBodies === 'html' || includeResponseBodies === 'all') {
     await cdpClient.setResponseBodies(har);
   }
 
-  const versionInfo = (
-    await cdpClient.send('Browser.getVersion')
-  ).product.split('/');
+  const getVersion = await cdpClient.send('Browser.getVersion');
+  const versionInfo = getVersion.product.split('/');
   const info = {
     name: versionInfo[0],
     version: versionInfo[1]
@@ -50,10 +48,10 @@ module.exports = async function (
   if (mobileEmulation) {
     info.name = `Chrome Emulated ${chrome.mobileEmulation.deviceName}`;
   }
-  harBuilder.addBrowser(har, info.name, info.version);
+  addBrowser(har, info.name, info.version);
 
   if (androidClient) {
-    har.log._android = await androidClient.getModel();
+    har.log._android = await androidClient.getMeta();
     har.log._android.id = androidClient.id;
   }
 
@@ -70,4 +68,4 @@ module.exports = async function (
     }
   }
   return har;
-};
+}
