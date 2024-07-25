@@ -27,6 +27,7 @@ export async function getHar(
       result.extraJson = {};
     }
     result.extraJson[`chromePerflog-${index}.json`] = messages;
+    result.extraJson[`chromeCDPlog-${index}.json`] = await cdpClient.getNetwork();
   }
   // CLEANUP since Chromedriver 2.29 there's a bug
   // https://bugs.chromium.org/p/chromedriver/issues/detail?id=1811
