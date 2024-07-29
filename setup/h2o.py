@@ -40,6 +40,7 @@ def start_h2o(addr, port, hostnames, namespace, nsid, fcgisocket, only_h2=False,
 
     config_file = "" +\
         "pid-file: " + pid_filename + "\n" +\
+        "user: root\n" +\
         "num-threads: 4\n"  +\
         "error-log: " + errorlog_filename + "\n"
 
