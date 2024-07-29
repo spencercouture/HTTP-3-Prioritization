@@ -6,3 +6,6 @@
 go_fastcgi/go.mod
 go_fastcgi/go.sum
 mitmproxy/run/output
+mitmproxy/sites/*/
+logs/*log
+temporary/
