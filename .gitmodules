@@ -2,3 +2,7 @@
 	path = h2o
 	url = https://github.com/COMSYS/h2o
 	ignore = dirty
+[submodule "quiche"]
+	path = quiche
+	url = git@github.com:spencercouture/quiche.git
+	ignore = dirty
