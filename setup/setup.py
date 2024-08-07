@@ -1,7 +1,8 @@
 #!/usr/bin/python3
 
 from glob import glob
-from setup import h2o, dnsmasq
+import hashlib
+from setup import h2o, dnsmasq, quiche
 from setup.process import run
 import sys
 import time
@@ -56,8 +57,12 @@ def cleanup_processes(nsid):
         run(["kill", "-9", pid], exceptionok=True)
 
     run(["browsertime/docker/stop_docker.sh", nsid], exceptionok=True)
+    run(["quiche/stop_docker.sh", nsid], exceptionok=True)
 
     run(["rm", "/var/run/netns/%s-browsertime" % nsid], exceptionok=True)
+    run(["rm", "/var/run/netns/quiche-client"], exceptionok=True)
+    run(["rm", "/var/run/netns/quiche-server"], exceptionok=True)
+
 
     run(["ip", "netns", "delete", "%s-servers" % nsid], exceptionok=True)
     run(["ip", "netns", "delete", "%s-ns0" % nsid], exceptionok=True)
@@ -75,14 +80,28 @@ def cleanup_processes(nsid):
     run(["ip", "link", "del", "veth%s6" % nsid], exceptionok=True)
     run(["ip", "link", "del", "veth%s7" % nsid], exceptionok=True)
 
+    # i think these were just missing?
+    run(["ip", "link", "del", "vethd%s1" % nsid], exceptionok=True)
+    run(["ip", "link", "del", "vethd%s3" % nsid], exceptionok=True)
+
+    # quiche client
+    run(["ip", "link", "del", "veth%s63" % nsid], exceptionok=True)
+    run(["ip", "link", "del", "veth%s64" % nsid], exceptionok=True)
+
+    # quiche server
+    run(["ip", "link", "del", "veth%s663" % nsid], exceptionok=True)
+    run(["ip", "link", "del", "veth%s664" % nsid], exceptionok=True)
+
+
 def setup_browsertime(nsid):
     run(["browsertime/docker/start_docker.sh", nsid])
+    run(["quiche/start_docker.sh", nsid])
 
-def setup(nsid, directory, rewrite_file=None, allsameip=False, only_h2=False, prioritization=None,cc="reno"):
+def setup(nsid, directory, rewrite_file=None, allsameip=False, only_h2=False, prioritization=None,cc="reno", use_quiche=False):
     cleanup(nsid)
     setup_browsertime(nsid)
     setup_namespaces(nsid)
-    return setup_servers(nsid, directory, rewrite_file, allsameip, only_h2, prioritization=prioritization,cc=cc)
+    return setup_servers(nsid, directory, rewrite_file, allsameip, only_h2, prioritization=prioritization,cc=cc,use_quiche=use_quiche)
 
 def setup_namespaces(nsid):
     run(["ip", "netns", "add", "%s-servers" % nsid])
@@ -128,6 +147,43 @@ def setup_namespaces(nsid):
     runcmd("ip netns exec %s-browsertime ip addr add 10.0.1.3/24 dev vethd%s2" % (nsid, nsid))
     runcmd("ip netns exec %s-browsertime ip route add default via 10.0.1.1" % nsid)
 
+    # quiche things...
+    #
+    # client:
+    #   - create veth pairs
+    runcmd("ip link add vethd%s63 type veth peer name vethd%s64" % (nsid, nsid))
+    runcmd("ethtool -K vethd%s63 tso off gso off gro off" % nsid)
+    runcmd("ethtool -K vethd%s64 tso off gso off gro off" % nsid)
+    #   - add vethd-ns-64 to quiche-client  NS
+    runcmd("ip link set vethd%s64 netns quiche-client" % (nsid))
+    runcmd("ip netns exec quiche-client ip link set dev vethd%s64 up" % (nsid))
+    runcmd("ip netns exec quiche-client ip addr add 10.0.1.63/24 dev vethd%s64" % (nsid))
+    runcmd("ip netns exec quiche-client ip route add default via 10.0.1.1")
+    #   - add add vethd-ns-63 to ns-client namespace and to bridge0
+    runcmd("ip link set vethd%s63 netns %s-client" % (nsid, nsid))
+    runcmd("ip netns exec %s-client ip link set dev vethd%s63 up" % (nsid, nsid))
+    #
+    # server:
+    #   - create veth pairs
+    runcmd("ip link add vethd%s663 type veth peer name vethd%s664" % (nsid, nsid))
+    runcmd("ethtool -K vethd%s663 tso off gso off gro off" % nsid)
+    runcmd("ethtool -K vethd%s664 tso off gso off gro off" % nsid)
+    #   - add vethd-ns-64 to quiche -server NS
+    runcmd("ip link set vethd%s664 netns quiche-server" % (nsid))
+    runcmd("ip netns exec quiche-server ip link set dev vethd%s664 up" % (nsid))
+    runcmd("ip netns exec quiche-server ip addr add 10.0.1.93/24 dev vethd%s664" % (nsid))
+    runcmd("ip netns exec quiche-server ip route add default via 10.0.1.1")
+    #   - add add vethd-ns-63 to ns-0 namespace and to bridge
+    runcmd("ip link set vethd%s663 netns %s-ns0" % (nsid, nsid))
+    runcmd("ip netns exec %s-ns0 ip link set dev vethd%s663 up" % (nsid, nsid))
+    runcmd("ip netns exec %s-ns0 ip link set vethd%s663 master br%s0" % (nsid, nsid, nsid))
+    # basically done quiche things.. see bridge add in a few lines
+
+
+    # add a new veth pair for iperf
+
+
+
     runcmd("ip link set vethd%s1 netns %s-client" % (nsid, nsid))
     runcmd("ip netns exec %s-client ip link set dev vethd%s1 up" % (nsid, nsid))
 
@@ -147,6 +203,10 @@ def setup_namespaces(nsid):
     runcmd("ip netns exec %s-client ip link set vethd%s3 master brd%s0" % (nsid, nsid, nsid))
     runcmd("ip netns exec %s-client sysctl -w net.ipv4.ip_unprivileged_port_start=1" % nsid)
 
+    # ONE MORE QUICHE THING!
+    # for client - add vethd-ns-63 to the ns-client bridge
+    runcmd("ip netns exec %s-client ip link set vethd%s63 master brd%s0" % (nsid, nsid, nsid))
+
 #   runcmd("ip netns exec %s-client sysctl -w net.ipv4.ip_forward=1" % nsid)
     runcmd("ip netns exec %s-servers sysctl -w net.ipv4.ip_forward=1" % nsid)
     runcmd("ip netns exec %s-servers sysctl -w net.ipv4.ip_forward=1" % nsid)
@@ -154,7 +214,7 @@ def setup_namespaces(nsid):
 
     set_bottleneck(nsid, bw=1, rtt=200, bdp=10, first=True)
 
-def setup_servers(nsid, directory, rewrite_file=None, allsameip=False, only_h2=False, prioritization=None, cc="reno"):
+def setup_servers(nsid, directory, rewrite_file=None, allsameip=False, only_h2=False, prioritization=None, cc="reno", use_quiche=False):
     directory = os.path.abspath(directory)
     files = glob(directory+"/*.save")
 
@@ -197,7 +257,7 @@ def setup_servers(nsid, directory, rewrite_file=None, allsameip=False, only_h2=F
 
         hostname = request_headers["host"]
         if allsameip:
-            ip = "9.9.9.9"
+            ip = "9.9.9.9" if not use_quiche else "10.0.1.93"
             hostnames_to_ip[hostname] = ip
         else:
             if hostname in hostnames_to_ip:
@@ -211,18 +271,23 @@ def setup_servers(nsid, directory, rewrite_file=None, allsameip=False, only_h2=F
             unique_ip_and_port_to_hosts[(ip, port)] = []
         unique_ip_and_port_to_hosts[(ip, port)].append(hostname)
 
-    for counter, ip in enumerate(unique_ip):
-        add_dummy_interface("sharded%d" % counter, ip, "%s-servers" % nsid)
+    if not use_quiche:
+        for counter, ip in enumerate(unique_ip):
+            add_dummy_interface("sharded%d" % counter, ip, "%s-servers" % nsid)
 
     servers = []
     for (ip, port), hostnames in unique_ip_and_port_to_hosts.items():
         if not only_h2 and port == 80:
             logging.info("port 80 and quic selected?!")
-        server = h2o.start_h2o(ip, port, hostnames, "%s-servers" % nsid, nsid, fcgisocket, only_h2=only_h2, prioritization=prioritization, cc=cc)
+        if use_quiche:
+            server = quiche.start_quiche(ip, port, hostnames, "%s-servers" % nsid, nsid, directory)
+            # servers.append(server)
+            # server = h2o.start_h2o(ip, port, hostnames, "%s-servers" % nsid, nsid, fcgisocket, only_h2=only_h2, prioritization=prioritization, cc=cc)
+        else:
+            server = h2o.start_h2o(ip, port, hostnames, "%s-servers" % nsid, nsid, fcgisocket, only_h2=only_h2, prioritization=prioritization, cc=cc)
         servers.append(server)
 
     # DNS stuff
-
     dns_entries = []
     for hostname, ip in hostnames_to_ip.items():
         dns_entries.append((ip, hostname))
@@ -251,6 +316,7 @@ def set_bottleneck(nsid, bw, rtt, bdp, first=False, bwup=None, loss=0):
         runcmd("ip netns exec %s-ns1 tc qdisc %s dev veth%s4 root handle 1: netem delay %fms limit %d" % (nsid, op, nsid, rtt / 2, oversized_bdp_packets))
         runcmd("ip netns exec %s-ns2 tc qdisc %s dev veth%s5 root handle 1: netem delay %fms limit %d" % (nsid, op, nsid, rtt / 2, oversized_bdp_packets))
     else:
+        print(f"loss type: {type(loss)}, {loss}")
         if type(loss) == str:
             # adding qdiscs - delay (burst) loss
             runcmd("ip netns exec %s-ns1 tc qdisc %s dev veth%s4 root handle 1: netem delay %fms loss %s limit %d" % (nsid, op, nsid, rtt / 2, loss, oversized_bdp_packets))
