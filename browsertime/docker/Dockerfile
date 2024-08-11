@@ -15,7 +15,7 @@ RUN chown -R root:root /opt/comsyschrome
 
 COPY RootCA.crt /root/ca.crt
 
-RUN certutil -d sql:/root/.pki/nssdb -A -n 'example ca' -i /root/ca.crt -t TCP,TCP,TCP
+RUN certutil -d sql:/root/.pki/nssdb -A -n 'smc ca' -i /root/ca.crt -t TCP,TCP,TCP
 
 COPY chromeDevtoolsProtocol.js /usr/src/app/lib/chrome/chromeDevtoolsProtocol.js
 COPY har.js /usr/src/app/lib/chrome/har.js
