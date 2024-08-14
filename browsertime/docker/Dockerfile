@@ -9,9 +9,9 @@ RUN apt-get update && apt-get install -y \
 
 RUN [ -d ~/.pki/nssdb ] || mkdir -p ~/.pki/nssdb
 
-COPY chromium/src/out/Default /opt/comsyschrome
+#COPY chromium/src/out/Default /opt/comsyschrome
 
-RUN chown -R root:root /opt/comsyschrome
+#RUN chown -R root:root /opt/comsyschrome
 
 COPY RootCA.crt /root/ca.crt
 

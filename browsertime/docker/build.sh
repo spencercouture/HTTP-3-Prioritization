@@ -1,1 +1,1 @@
-docker build --no-cache -t constantin/browsertime .
+docker build --no-cache -t scouture/browsertime .
