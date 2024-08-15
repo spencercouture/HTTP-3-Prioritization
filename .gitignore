@@ -2,7 +2,6 @@
 *.pyc
 *.gz
 .vscode
-*README.md*
 go_fastcgi/go.mod
 go_fastcgi/go.sum
 mitmproxy/run/output
