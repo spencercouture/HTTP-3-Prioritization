@@ -216,7 +216,7 @@ def setup_namespaces(nsid):
 
 def setup_servers(nsid, directory, rewrite_file=None, allsameip=False, only_h2=False, prioritization=None, cc="reno", use_quiche=False):
     directory = os.path.abspath(directory)
-    files = glob(directory+"/*.save")
+    files = glob(directory+"/protobuf_files/*.save")
 
     fcgipath = os.path.abspath("temporary/go/%s" % nsid)
     os.makedirs(fcgipath, exist_ok=False)

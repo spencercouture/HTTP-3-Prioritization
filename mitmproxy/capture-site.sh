@@ -4,16 +4,15 @@ if [ "$#" -ne 1 ]; then
     exit
 fi
 SITE_URL=$1
-SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &>/dev/null && pwd)
 SITE_PATH="$SCRIPT_DIR/sites/$SITE_URL"
 
 # check if directory already exists, ask for overwrite confirmation
-if [ -d $SITE_PATH ] ; then 
+if [ -d $SITE_PATH ]; then
     read -p "\"sites/$SITE_URL\" already exists. would you like to overwrite? (y/n) " -n 1 -r
     echo
 
-    if [[ $REPLY =~ ^[Yy]$ ]]
-    then
+    if [[ $REPLY =~ ^[Yy]$ ]]; then
         sudo rm -rf $SITE_PATH
     else
         echo "quitting..."
@@ -37,4 +36,6 @@ docker run --add-host=host.docker.internal:host-gateway --rm sitespeedio/browser
 docker stop $mitm_container
 
 # copy output to site dir
-cp -r $SCRIPT_DIR/run/output/* $SITE_PATH
+mkdir -p $SITE_PATH/protobuf_files
+mkdir -p $SITE_PATH/static_files
+cp -r $SCRIPT_DIR/run/output/* $SITE_PATH/protobuf_files
