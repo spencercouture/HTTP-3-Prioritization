@@ -9,13 +9,13 @@ RUN apt-get update && apt-get install -y \
 
 RUN [ -d ~/.pki/nssdb ] || mkdir -p ~/.pki/nssdb
 
-COPY chromium/src/out/Default /opt/comsyschrome
+#COPY chromium/src/out/Default /opt/comsyschrome
 
-RUN chown -R root:root /opt/comsyschrome
+#RUN chown -R root:root /opt/comsyschrome
 
-COPY ../../setup/certificates/RootCA.cert /root/ca.crt
+COPY RootCA.crt /root/ca.crt
 
-RUN certutil -d sql:/root/.pki/nssdb -A -n 'example ca' -i /root/ca.crt -t TCP,TCP,TCP
+RUN certutil -d sql:/root/.pki/nssdb -A -n 'smc ca' -i /root/ca.crt -t TCP,TCP,TCP
 
 COPY chromeDevtoolsProtocol.js /usr/src/app/lib/chrome/chromeDevtoolsProtocol.js
 COPY har.js /usr/src/app/lib/chrome/har.js
