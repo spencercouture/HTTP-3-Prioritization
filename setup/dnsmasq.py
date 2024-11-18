@@ -14,7 +14,7 @@ def start_dnsmasq(dns_entries, namespace, nsid):
 
     hosts = "\n".join([ip + " " + hostname for ip, hostname in dns_entries]) + "\n"
 
-    config = ""
+    config = "log-queries"
 
     with open(hosts_filename,"w") as f:
         f.write(hosts)
@@ -22,6 +22,6 @@ def start_dnsmasq(dns_entries, namespace, nsid):
     with open(config_filename,"w") as f:
         f.write(config)
     
-    args = ["dnsmasq", "--no-resolv", "--no-hosts", "-C", config_filename, "-H", hosts_filename, "-x", pid_filename]
+    args = ["dnsmasq", "-u", "root", "--no-resolv", "--no-hosts", "-C", config_filename, "-H", hosts_filename, "-x", pid_filename]
     p = run(args, namespace)
     return p
