@@ -19,7 +19,7 @@ workdir = args.workdir #mahimahi workdir
 output = args.output # output file
 input = args.input # input json from main.py
 
-available_pages = mm_files.preload_files(workdir)
+available_pages = mm_files.preload_files(workdir + "/protobuf_files")
 priorities = json.load(open(input))
 
 available_urls = [page["request_host"] + page["request_uri"] for page in available_pages]

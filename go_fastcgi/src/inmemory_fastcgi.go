@@ -111,7 +111,7 @@ type CacheEntry struct {
 var cache map[CacheKey]*CacheEntries
 
 func preloadFiles(workdir string) {
-	matches, err := filepath.Glob(workdir + "/*.save")
+	matches, err := filepath.Glob(workdir + "/protobuf_files/*.save")
 	if err != nil {
 		fmt.Println(err)
 	}
