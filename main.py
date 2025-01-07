@@ -73,6 +73,8 @@ def main():
     parser.add_argument('--h2prioout')
     parser.add_argument('--n')
 
+    parser.add_argument('--quiche', default=False, action='store_true')
+
     parser.add_argument('--eval')
     parser.add_argument('--skip')
 
@@ -137,7 +139,7 @@ def main():
                     config["bwup"] = config["bwdown"]
 
                 try:
-                    servers = setup(args.namespace, config["workdir"], None, True, prioritization={"mode":config["priomode"],"file":config["priofile"]},cc=cc,only_h2=False)
+                    servers = setup(args.namespace, config["workdir"], None, True, prioritization={"mode":config["priomode"],"file":config["priofile"]},cc=cc,only_h2=False,use_quiche=args.quiche)
                     set_bottleneck(args.namespace, config["bwdown"], config["rtt"], config["bdp"], bwup=config["bwup"], loss=config["loss"])
                     logging.info("wait for 5 seconds")
                     sleep(5)
